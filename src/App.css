@@ -62,6 +62,20 @@ body {
   line-height: 1.5;
 }
 
+.transformation-info {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(30, 58, 138, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(30, 58, 138, 0.2);
+}
+
+.transformation-info p {
+  font-size: 0.8rem;
+  color: #60a5fa;
+  margin: 4px 0;
+}
+
 /* Loading Screen */
 .loader {
   display: flex;

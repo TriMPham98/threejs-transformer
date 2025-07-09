@@ -11,8 +11,8 @@ import {
   Bloom,
   DepthOfField,
 } from "@react-three/postprocessing";
-import { Leva, useControls } from "leva";
 import OptimusPrime from "./components/OptimusPrime";
+import { useGameState, AnimState } from "./utils/gameState";
 import "./App.css";
 
 function Loader() {
@@ -30,14 +30,11 @@ function Loader() {
 }
 
 function App() {
-  const { autoRotate, enablePostProcessing } = useControls({
-    autoRotate: { value: true },
-    enablePostProcessing: { value: true },
-  });
+  const { autoTransform, robotColor, truckColor, animationSpeed } =
+    useGameState();
 
   return (
     <div className="App">
-      <Leva />
       <Canvas
         shadows
         camera={{ position: [0, 0, 8], fov: 50 }}
@@ -56,12 +53,17 @@ function App() {
           {/* Environment */}
           <Environment preset="city" background />
 
-          {/* Main Component */}
-          <OptimusPrime />
+          {/* Main Component - Optimus Prime with tank-style animation */}
+          <OptimusPrime
+            animationMode={AnimState.ASSEMBLING_LOOP}
+            onAnimationComplete={(finalState) => {
+              console.log("Animation completed:", finalState);
+            }}
+          />
 
           {/* Controls */}
           <OrbitControls
-            autoRotate={autoRotate}
+            autoRotate={false}
             autoRotateSpeed={0.5}
             enableZoom={true}
             enablePan={true}
@@ -72,24 +74,24 @@ function App() {
           />
 
           {/* Post Processing Effects */}
-          {enablePostProcessing && (
-            <EffectComposer>
-              <Bloom intensity={0.3} luminanceThreshold={0.9} />
-              <DepthOfField
-                focusDistance={0}
-                focalLength={0.02}
-                bokehScale={2}
-              />
-            </EffectComposer>
-          )}
+          <EffectComposer>
+            <Bloom intensity={0.3} luminanceThreshold={0.9} />
+            <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} />
+          </EffectComposer>
         </Suspense>
       </Canvas>
 
       <div className="ui-overlay">
         <h1>Optimus Prime Transformer</h1>
         <p>
-          Click and drag to rotate • Scroll to zoom • Use controls to customize
+          Watch as the legendary Autobot assembles piece by piece, then
+          transforms between robot and truck modes!
         </p>
+        <div className="transformation-info">
+          <p>• Assembly → Rotation → Transform → Repeat</p>
+          <p>• Each cycle shows a different mode</p>
+          <p>• Click and drag to explore the 3D model</p>
+        </div>
       </div>
     </div>
   );

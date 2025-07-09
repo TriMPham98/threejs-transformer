@@ -1,326 +1,581 @@
 import React, { useRef, useState, useEffect } from "react";
-import { useFrame } from "@react-three/fiber";
-import { useSpring, animated, config } from "@react-spring/three";
 import { Box, Cylinder, Sphere } from "@react-three/drei";
-import { useControls } from "leva";
-import * as THREE from "three";
+import { Vector3 } from "three";
+import { useFrame } from "@react-three/fiber";
+import { useGameState, AnimState } from "../utils/gameState";
 
-const OptimuspPrime = () => {
-  const groupRef = useRef();
+// Easing function (ease-out cubic)
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+const OptimusPrime = ({
+  animationMode = AnimState.ASSEMBLING_LOOP,
+  onAnimationComplete,
+}) => {
+  const transformerRef = useRef();
+  const [animationProgress, setAnimationProgress] = useState(0);
+  const [animState, setAnimState] = useState(animationMode);
+  const [rotationAngle, setRotationAngle] = useState(0);
   const [isTransformed, setIsTransformed] = useState(false);
+  const restartLoopTimeoutRef = useRef(null);
 
-  const { transform, robotColor, truckColor, animationSpeed, autoTransform } =
-    useControls("Optimus Prime", {
-      transform: { value: false },
-      robotColor: { value: "#1e3a8a" },
-      truckColor: { value: "#dc2626" },
-      animationSpeed: { value: 1, min: 0.1, max: 3 },
-      autoTransform: { value: true },
-    });
+  const { robotColor, truckColor, animationSpeed, autoTransform } =
+    useGameState();
 
-  // Auto-transform every 4 seconds
+  // Reset state when animationMode prop changes
   useEffect(() => {
-    if (autoTransform) {
-      const interval = setInterval(() => {
-        setIsTransformed((prev) => !prev);
-      }, 4000);
-      return () => clearInterval(interval);
+    setAnimState(animationMode);
+    setAnimationProgress(0);
+    setRotationAngle(0);
+    if (
+      animationMode === AnimState.IDLE ||
+      animationMode === AnimState.PAUSED
+    ) {
+      setAnimationProgress(1);
     }
-  }, [autoTransform]);
+  }, [animationMode]);
 
-  // Manual transform control
+  // Cleanup timeout on unmount
   useEffect(() => {
-    setIsTransformed(transform);
-  }, [transform]);
+    return () => {
+      if (restartLoopTimeoutRef.current) {
+        clearTimeout(restartLoopTimeoutRef.current);
+      }
+    };
+  }, []);
 
-  // Animation springs for transformation
-  const { headPosition, headRotation } = useSpring({
-    headPosition: isTransformed ? [0, 2.5, 0] : [0, 0.8, 2],
-    headRotation: isTransformed ? [0, 0, 0] : [-Math.PI / 4, 0, 0],
-    config: { ...config.wobbly, duration: 2000 / animationSpeed },
-  });
+  // Define the starting positions for each Optimus Prime piece (scattered)
+  const startingPositions = {
+    // Head parts
+    head: new Vector3(0, 25, 0),
+    helmet: new Vector3(0, 30, 0),
+    faceplate: new Vector3(0, 20, 5),
+    eyes: new Vector3(-15, 0.1, 10),
 
-  const { chestPosition, chestScale } = useSpring({
-    chestPosition: isTransformed ? [0, 1.5, 0] : [0, 0, 1],
-    chestScale: isTransformed ? [1.5, 2, 0.8] : [2, 1, 3],
-    config: { ...config.wobbly, duration: 2000 / animationSpeed },
-  });
+    // Torso parts
+    chest: new Vector3(0, 20, 0),
+    chestMatrix: new Vector3(0, 25, 2),
+    abdomen: new Vector3(0, 15, 0),
+    waist: new Vector3(0, 10, 0),
 
-  const { leftArmPosition, leftArmRotation } = useSpring({
-    leftArmPosition: isTransformed ? [-2, 1, 0] : [-1.5, 0, 0.5],
-    leftArmRotation: isTransformed ? [0, 0, -Math.PI / 6] : [0, 0, Math.PI / 2],
-    config: { ...config.wobbly, duration: 2000 / animationSpeed },
-  });
+    // Arms
+    leftShoulder: new Vector3(-30, 1, 0),
+    rightShoulder: new Vector3(30, 1, 0),
+    leftUpperArm: new Vector3(-25, 1, 0),
+    rightUpperArm: new Vector3(25, 1, 0),
+    leftForearm: new Vector3(-20, 1, 0),
+    rightForearm: new Vector3(20, 1, 0),
+    leftHand: new Vector3(-15, 1, 0),
+    rightHand: new Vector3(15, 1, 0),
 
-  const { rightArmPosition, rightArmRotation } = useSpring({
-    rightArmPosition: isTransformed ? [2, 1, 0] : [1.5, 0, 0.5],
-    rightArmRotation: isTransformed
-      ? [0, 0, Math.PI / 6]
-      : [0, 0, -Math.PI / 2],
-    config: { ...config.wobbly, duration: 2000 / animationSpeed },
-  });
+    // Legs
+    leftThigh: new Vector3(-20, -10, 0),
+    rightThigh: new Vector3(20, -10, 0),
+    leftShin: new Vector3(-25, -15, 0),
+    rightShin: new Vector3(25, -15, 0),
+    leftFoot: new Vector3(-30, -20, 0),
+    rightFoot: new Vector3(30, -20, 0),
 
-  const { leftLegPosition, leftLegRotation } = useSpring({
-    leftLegPosition: isTransformed ? [-0.5, -1, 0] : [-0.8, -0.5, -1.5],
-    leftLegRotation: isTransformed ? [0, 0, 0] : [Math.PI / 3, 0, 0],
-    config: { ...config.wobbly, duration: 2000 / animationSpeed },
-  });
+    // Vehicle parts (for truck mode)
+    frontGrill: new Vector3(0, 0, 25),
+    frontBumper: new Vector3(0, -5, 20),
+    windshield: new Vector3(0, 15, 15),
+    cabin: new Vector3(0, 10, 10),
+    trailer: new Vector3(0, 5, -20),
+    leftWheel1: new Vector3(-20, -5, 15),
+    rightWheel1: new Vector3(20, -5, 15),
+    leftWheel2: new Vector3(-20, -5, -15),
+    rightWheel2: new Vector3(20, -5, -15),
+    smokeStack1: new Vector3(-15, 20, 5),
+    smokeStack2: new Vector3(15, 20, 5),
+  };
 
-  const { rightLegPosition, rightLegRotation } = useSpring({
-    rightLegPosition: isTransformed ? [0.5, -1, 0] : [0.8, -0.5, -1.5],
-    rightLegRotation: isTransformed ? [0, 0, 0] : [Math.PI / 3, 0, 0],
-    config: { ...config.wobbly, duration: 2000 / animationSpeed },
-  });
+  // Define the target positions for robot mode
+  const robotPositions = {
+    // Head parts
+    head: new Vector3(0, 2.3, 0),
+    helmet: new Vector3(0, 2.6, 0),
+    faceplate: new Vector3(0, 2.3, 0.4),
+    eyes: new Vector3(0, 2.35, 0.45),
 
-  // Wheel animations
-  const { frontWheelsPosition, rearWheelsPosition } = useSpring({
-    frontWheelsPosition: isTransformed ? [0, -2.5, 2] : [0, -0.8, 2.5],
-    rearWheelsPosition: isTransformed ? [0, -2.5, -2] : [0, -0.8, -1.5],
-    config: { ...config.wobbly, duration: 2000 / animationSpeed },
-  });
+    // Torso parts
+    chest: new Vector3(0, 1.5, 0),
+    chestMatrix: new Vector3(0, 1.7, 0.3),
+    abdomen: new Vector3(0, 1.0, 0),
+    waist: new Vector3(0, 0.5, 0),
 
-  // Idle animation
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += 0.002;
-      groupRef.current.position.y =
-        Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
+    // Arms
+    leftShoulder: new Vector3(-1.8, 1.8, 0),
+    rightShoulder: new Vector3(1.8, 1.8, 0),
+    leftUpperArm: new Vector3(-2.2, 1.2, 0),
+    rightUpperArm: new Vector3(2.2, 1.2, 0),
+    leftForearm: new Vector3(-2.2, 0.6, 0),
+    rightForearm: new Vector3(2.2, 0.6, 0),
+    leftHand: new Vector3(-2.2, 0.1, 0),
+    rightHand: new Vector3(2.2, 0.1, 0),
+
+    // Legs
+    leftThigh: new Vector3(-0.6, -0.3, 0),
+    rightThigh: new Vector3(0.6, -0.3, 0),
+    leftShin: new Vector3(-0.6, -1.2, 0),
+    rightShin: new Vector3(0.6, -1.2, 0),
+    leftFoot: new Vector3(-0.6, -2.0, 0.2),
+    rightFoot: new Vector3(0.6, -2.0, 0.2),
+
+    // Vehicle parts (hidden/integrated in robot mode)
+    frontGrill: new Vector3(0, 1.5, 0.2),
+    frontBumper: new Vector3(0, 1.3, 0.25),
+    windshield: new Vector3(0, 2.0, -0.2),
+    cabin: new Vector3(0, 1.8, -0.1),
+    trailer: new Vector3(0, 0.5, -0.8),
+    leftWheel1: new Vector3(-0.8, 0.3, -0.5),
+    rightWheel1: new Vector3(0.8, 0.3, -0.5),
+    leftWheel2: new Vector3(-0.8, -1.0, -0.5),
+    rightWheel2: new Vector3(0.8, -1.0, -0.5),
+    smokeStack1: new Vector3(-0.3, 2.8, -0.3),
+    smokeStack2: new Vector3(0.3, 2.8, -0.3),
+  };
+
+  // Define truck mode positions
+  const truckPositions = {
+    // Head parts (integrated into cabin)
+    head: new Vector3(0, 0.8, 1.8),
+    helmet: new Vector3(0, 0.9, 1.7),
+    faceplate: new Vector3(0, 0.8, 2.0),
+    eyes: new Vector3(0, 0.8, 2.1),
+
+    // Torso parts (become truck body)
+    chest: new Vector3(0, 0, 1),
+    chestMatrix: new Vector3(0, 0.1, 1.3),
+    abdomen: new Vector3(0, 0, 0.5),
+    waist: new Vector3(0, 0, 0),
+
+    // Arms (fold into sides)
+    leftShoulder: new Vector3(-1.2, 0.2, 1),
+    rightShoulder: new Vector3(1.2, 0.2, 1),
+    leftUpperArm: new Vector3(-1.5, 0, 0.5),
+    rightUpperArm: new Vector3(1.5, 0, 0.5),
+    leftForearm: new Vector3(-1.5, 0, 0),
+    rightForearm: new Vector3(1.5, 0, 0),
+    leftHand: new Vector3(-1.5, 0, -0.5),
+    rightHand: new Vector3(1.5, 0, -0.5),
+
+    // Legs (become rear truck)
+    leftThigh: new Vector3(-0.8, 0, -1),
+    rightThigh: new Vector3(0.8, 0, -1),
+    leftShin: new Vector3(-0.8, 0, -1.8),
+    rightShin: new Vector3(0.8, 0, -1.8),
+    leftFoot: new Vector3(-0.8, 0, -2.5),
+    rightFoot: new Vector3(0.8, 0, -2.5),
+
+    // Vehicle parts (prominent in truck mode)
+    frontGrill: new Vector3(0, 0.3, 2.8),
+    frontBumper: new Vector3(0, 0.1, 2.9),
+    windshield: new Vector3(0, 0.8, 2.2),
+    cabin: new Vector3(0, 0.5, 2),
+    trailer: new Vector3(0, 0.2, -2.5),
+    leftWheel1: new Vector3(-1.2, -0.5, 2.2),
+    rightWheel1: new Vector3(1.2, -0.5, 2.2),
+    leftWheel2: new Vector3(-1.2, -0.5, -2.2),
+    rightWheel2: new Vector3(1.2, -0.5, -2.2),
+    smokeStack1: new Vector3(-0.6, 1.5, 1.5),
+    smokeStack2: new Vector3(0.6, 1.5, 1.5),
+  };
+
+  // Animation timing for each part
+  const animationStarts = {
+    head: 0,
+    helmet: 0.02,
+    faceplate: 0.04,
+    eyes: 0.06,
+    chest: 0.08,
+    chestMatrix: 0.1,
+    abdomen: 0.12,
+    waist: 0.14,
+    leftShoulder: 0.16,
+    rightShoulder: 0.16,
+    leftUpperArm: 0.18,
+    rightUpperArm: 0.18,
+    leftForearm: 0.2,
+    rightForearm: 0.2,
+    leftHand: 0.22,
+    rightHand: 0.22,
+    leftThigh: 0.24,
+    rightThigh: 0.24,
+    leftShin: 0.26,
+    rightShin: 0.26,
+    leftFoot: 0.28,
+    rightFoot: 0.28,
+    frontGrill: 0.3,
+    frontBumper: 0.32,
+    windshield: 0.34,
+    cabin: 0.36,
+    trailer: 0.38,
+    leftWheel1: 0.4,
+    rightWheel1: 0.4,
+    leftWheel2: 0.42,
+    rightWheel2: 0.42,
+    smokeStack1: 0.44,
+    smokeStack2: 0.44,
+  };
+
+  // Calculate position based on animation progress and current mode
+  const getPosition = (partName, progress) => {
+    if (animState === AnimState.IDLE) {
+      const targetPositions = isTransformed ? truckPositions : robotPositions;
+      return targetPositions[partName];
+    }
+
+    const start = startingPositions[partName];
+    const end = isTransformed
+      ? truckPositions[partName]
+      : robotPositions[partName];
+    const partStartTime = animationStarts[partName];
+
+    if (progress < partStartTime) return start;
+    if (progress > partStartTime + 0.2) return end;
+
+    const partProgress = (progress - partStartTime) / 0.2;
+    const easedProgress = easeOutCubic(partProgress);
+    return new Vector3(
+      start.x + (end.x - start.x) * easedProgress,
+      start.y + (end.y - start.y) * easedProgress,
+      start.z + (end.z - start.z) * easedProgress
+    );
+  };
+
+  // Animation loop using useFrame
+  useFrame((_, delta) => {
+    const assemblySpeed = 0.25 * animationSpeed;
+    const rotationSpeed = 0.25 * animationSpeed;
+
+    if (animState === AnimState.ASSEMBLING_LOOP) {
+      setAnimationProgress((prev) => {
+        const newProgress = prev + delta * assemblySpeed;
+        if (newProgress >= 1) {
+          setAnimState(AnimState.ROTATING);
+          return 1;
+        }
+        return newProgress;
+      });
+    } else if (animState === AnimState.ROTATING) {
+      setRotationAngle((prev) => {
+        const newAngle = prev + delta * rotationSpeed;
+        const targetRotation = Math.PI * 2;
+        if (newAngle >= targetRotation) {
+          setAnimState(AnimState.PAUSED);
+          if (restartLoopTimeoutRef.current) {
+            clearTimeout(restartLoopTimeoutRef.current);
+          }
+          restartLoopTimeoutRef.current = setTimeout(() => {
+            setAnimState((currentState) => {
+              if (currentState === AnimState.PAUSED) {
+                // Toggle between robot and truck mode
+                setIsTransformed((prev) => !prev);
+                setAnimationProgress(0);
+                return AnimState.ASSEMBLING_LOOP;
+              }
+              return currentState;
+            });
+          }, 1000);
+          return targetRotation % (Math.PI * 2);
+        }
+        return newAngle;
+      });
+    } else if (animState === AnimState.ASSEMBLING_TRANSITION) {
+      setAnimationProgress((prev) => {
+        const newProgress = prev + delta * assemblySpeed;
+        if (newProgress >= 1) {
+          onAnimationComplete?.(AnimState.IDLE);
+          useGameState.setState({ isWireframeAssembled: true });
+          setAnimState(AnimState.IDLE);
+          return 1;
+        }
+        return newProgress;
+      });
     }
   });
 
-  const currentColor = isTransformed ? robotColor : truckColor;
-  const metalMaterial = new THREE.MeshStandardMaterial({
-    color: currentColor,
-    metalness: 0.7,
-    roughness: 0.3,
-  });
-  const darkMaterial = new THREE.MeshStandardMaterial({
-    color: "#1a1a1a",
-    metalness: 0.8,
-    roughness: 0.2,
-  });
+  // Determine current positions and properties
+  const currentProgress = animState === AnimState.IDLE ? 1 : animationProgress;
+  const currentRotation = animState === AnimState.IDLE ? 0 : rotationAngle;
+  const transformerScale = animState === AnimState.IDLE ? 0.8 : 1.2;
+  const currentColor = isTransformed ? truckColor : robotColor;
 
   return (
-    <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
-      {/* Head */}
-      <animated.group position={headPosition} rotation={headRotation}>
-        <Box args={[0.8, 0.8, 0.8]} material={metalMaterial} castShadow>
-          <meshStandardMaterial
-            color={currentColor}
-            metalness={0.7}
-            roughness={0.3}
-          />
-        </Box>
-        {/* Eyes */}
-        <Sphere
-          args={[0.1]}
-          position={[-0.2, 0.1, 0.4]}
-          material={darkMaterial}
+    <group
+      ref={transformerRef}
+      position={[0, 0, 0]}
+      scale={transformerScale}
+      rotation={[0, currentRotation, 0]}>
+      {/* HEAD ASSEMBLY */}
+      <Box
+        args={[0.6, 0.6, 0.6]}
+        position={getPosition("head", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
         />
-        <Sphere
-          args={[0.1]}
-          position={[0.2, 0.1, 0.4]}
-          material={darkMaterial}
+      </Box>
+
+      <Box
+        args={[0.7, 0.3, 0.4]}
+        position={getPosition("helmet", currentProgress).toArray()}>
+        <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
+      </Box>
+
+      <Box
+        args={[0.5, 0.4, 0.1]}
+        position={getPosition("faceplate", currentProgress).toArray()}>
+        <meshStandardMaterial color="#87ceeb" metalness={0.6} roughness={0.4} />
+      </Box>
+
+      <Sphere
+        args={[0.05]}
+        position={getPosition("eyes", currentProgress).toArray()}>
+        <meshStandardMaterial color="#00ffff" emissive="#004455" />
+      </Sphere>
+
+      {/* TORSO ASSEMBLY */}
+      <Box
+        args={[1.4, 1.8, 0.8]}
+        position={getPosition("chest", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
         />
-        {/* Antennae */}
-        <Cylinder
-          args={[0.02, 0.02, 0.3]}
-          position={[-0.3, 0.5, 0]}
-          material={darkMaterial}
+      </Box>
+
+      <Box
+        args={[0.6, 0.6, 0.2]}
+        position={getPosition("chestMatrix", currentProgress).toArray()}>
+        <meshStandardMaterial color="#ffd700" metalness={0.8} roughness={0.2} />
+      </Box>
+
+      <Box
+        args={[1.2, 0.8, 0.6]}
+        position={getPosition("abdomen", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
         />
-        <Cylinder
-          args={[0.02, 0.02, 0.3]}
-          position={[0.3, 0.5, 0]}
-          material={darkMaterial}
+      </Box>
+
+      <Box
+        args={[1.0, 0.4, 0.5]}
+        position={getPosition("waist", currentProgress).toArray()}>
+        <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+      </Box>
+
+      {/* ARM ASSEMBLY */}
+      <Sphere
+        args={[0.25]}
+        position={getPosition("leftShoulder", currentProgress).toArray()}>
+        <meshStandardMaterial color="#666" metalness={0.8} roughness={0.2} />
+      </Sphere>
+
+      <Sphere
+        args={[0.25]}
+        position={getPosition("rightShoulder", currentProgress).toArray()}>
+        <meshStandardMaterial color="#666" metalness={0.8} roughness={0.2} />
+      </Sphere>
+
+      <Cylinder
+        args={[0.15, 0.18, 0.8]}
+        position={getPosition("leftUpperArm", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
         />
-      </animated.group>
+      </Cylinder>
 
-      {/* Chest/Cabin */}
-      <animated.group position={chestPosition} scale={chestScale}>
-        <Box args={[1, 1, 1]} castShadow receiveShadow>
-          <meshStandardMaterial
-            color={currentColor}
-            metalness={0.7}
-            roughness={0.3}
-          />
-        </Box>
-        {/* Autobot Logo Area */}
-        <Box args={[0.3, 0.3, 0.1]} position={[0, 0.3, 0.51]}>
-          <meshStandardMaterial
-            color="#ffd700"
-            metalness={0.8}
-            roughness={0.2}
-          />
-        </Box>
-      </animated.group>
+      <Cylinder
+        args={[0.15, 0.18, 0.8]}
+        position={getPosition("rightUpperArm", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </Cylinder>
 
-      {/* Left Arm */}
-      <animated.group position={leftArmPosition} rotation={leftArmRotation}>
-        <Cylinder args={[0.2, 0.2, 1.5]} castShadow>
-          <meshStandardMaterial
-            color={currentColor}
-            metalness={0.7}
-            roughness={0.3}
-          />
-        </Cylinder>
-        {/* Shoulder Joint */}
-        <Sphere args={[0.3]} position={[0, 0.8, 0]}>
-          <meshStandardMaterial color="#666" metalness={0.8} roughness={0.2} />
-        </Sphere>
-        {/* Hand */}
-        <Box args={[0.3, 0.3, 0.3]} position={[0, -0.9, 0]}>
-          <meshStandardMaterial
-            color={darkMaterial.color}
-            metalness={0.8}
-            roughness={0.2}
-          />
-        </Box>
-      </animated.group>
+      <Cylinder
+        args={[0.12, 0.15, 0.7]}
+        position={getPosition("leftForearm", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </Cylinder>
 
-      {/* Right Arm */}
-      <animated.group position={rightArmPosition} rotation={rightArmRotation}>
-        <Cylinder args={[0.2, 0.2, 1.5]} castShadow>
-          <meshStandardMaterial
-            color={currentColor}
-            metalness={0.7}
-            roughness={0.3}
-          />
-        </Cylinder>
-        {/* Shoulder Joint */}
-        <Sphere args={[0.3]} position={[0, 0.8, 0]}>
-          <meshStandardMaterial color="#666" metalness={0.8} roughness={0.2} />
-        </Sphere>
-        {/* Hand */}
-        <Box args={[0.3, 0.3, 0.3]} position={[0, -0.9, 0]}>
-          <meshStandardMaterial
-            color={darkMaterial.color}
-            metalness={0.8}
-            roughness={0.2}
-          />
-        </Box>
-      </animated.group>
+      <Cylinder
+        args={[0.12, 0.15, 0.7]}
+        position={getPosition("rightForearm", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </Cylinder>
 
-      {/* Left Leg */}
-      <animated.group position={leftLegPosition} rotation={leftLegRotation}>
-        <Cylinder args={[0.25, 0.25, 2]} castShadow>
-          <meshStandardMaterial
-            color={currentColor}
-            metalness={0.7}
-            roughness={0.3}
-          />
-        </Cylinder>
-        {/* Knee Joint */}
-        <Sphere args={[0.2]} position={[0, 0, 0]}>
-          <meshStandardMaterial color="#666" metalness={0.8} roughness={0.2} />
-        </Sphere>
-        {/* Foot */}
-        <Box args={[0.4, 0.2, 0.8]} position={[0, -1.2, 0.2]}>
-          <meshStandardMaterial
-            color={darkMaterial.color}
-            metalness={0.8}
-            roughness={0.2}
-          />
-        </Box>
-      </animated.group>
+      <Box
+        args={[0.25, 0.25, 0.25]}
+        position={getPosition("leftHand", currentProgress).toArray()}>
+        <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
+      </Box>
 
-      {/* Right Leg */}
-      <animated.group position={rightLegPosition} rotation={rightLegRotation}>
-        <Cylinder args={[0.25, 0.25, 2]} castShadow>
-          <meshStandardMaterial
-            color={currentColor}
-            metalness={0.7}
-            roughness={0.3}
-          />
-        </Cylinder>
-        {/* Knee Joint */}
-        <Sphere args={[0.2]} position={[0, 0, 0]}>
-          <meshStandardMaterial color="#666" metalness={0.8} roughness={0.2} />
-        </Sphere>
-        {/* Foot */}
-        <Box args={[0.4, 0.2, 0.8]} position={[0, -1.2, 0.2]}>
-          <meshStandardMaterial
-            color={darkMaterial.color}
-            metalness={0.8}
-            roughness={0.2}
-          />
-        </Box>
-      </animated.group>
+      <Box
+        args={[0.25, 0.25, 0.25]}
+        position={getPosition("rightHand", currentProgress).toArray()}>
+        <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
+      </Box>
 
-      {/* Wheels - Front */}
-      <animated.group position={frontWheelsPosition}>
-        <Cylinder
-          args={[0.4, 0.4, 0.2]}
-          rotation={[0, 0, Math.PI / 2]}
-          position={[-1, 0, 0]}>
-          <meshStandardMaterial
-            color="#1a1a1a"
-            metalness={0.3}
-            roughness={0.7}
-          />
-        </Cylinder>
-        <Cylinder
-          args={[0.4, 0.4, 0.2]}
-          rotation={[0, 0, Math.PI / 2]}
-          position={[1, 0, 0]}>
-          <meshStandardMaterial
-            color="#1a1a1a"
-            metalness={0.3}
-            roughness={0.7}
-          />
-        </Cylinder>
-      </animated.group>
+      {/* LEG ASSEMBLY */}
+      <Cylinder
+        args={[0.2, 0.25, 1.0]}
+        position={getPosition("leftThigh", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </Cylinder>
 
-      {/* Wheels - Rear */}
-      <animated.group position={rearWheelsPosition}>
-        <Cylinder
-          args={[0.4, 0.4, 0.2]}
-          rotation={[0, 0, Math.PI / 2]}
-          position={[-1, 0, 0]}>
-          <meshStandardMaterial
-            color="#1a1a1a"
-            metalness={0.3}
-            roughness={0.7}
-          />
-        </Cylinder>
-        <Cylinder
-          args={[0.4, 0.4, 0.2]}
-          rotation={[0, 0, Math.PI / 2]}
-          position={[1, 0, 0]}>
-          <meshStandardMaterial
-            color="#1a1a1a"
-            metalness={0.3}
-            roughness={0.7}
-          />
-        </Cylinder>
-      </animated.group>
+      <Cylinder
+        args={[0.2, 0.25, 1.0]}
+        position={getPosition("rightThigh", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </Cylinder>
 
-      {/* Exhaust Pipes (visible in truck mode) */}
-      {!isTransformed && (
-        <group>
-          <Cylinder
-            args={[0.1, 0.1, 2]}
-            position={[-0.8, 1, -2]}
-            rotation={[Math.PI / 2, 0, 0]}>
-            <meshStandardMaterial
-              color="#333"
-              metalness={0.8}
-              roughness={0.3}
-            />
-          </Cylinder>
-          <Cylinder
-            args={[0.1, 0.1, 2]}
-            position={[0.8, 1, -2]}
-            rotation={[Math.PI / 2, 0, 0]}>
-            <meshStandardMaterial
-              color="#333"
-              metalness={0.8}
-              roughness={0.3}
-            />
-          </Cylinder>
-        </group>
-      )}
+      <Cylinder
+        args={[0.18, 0.2, 1.0]}
+        position={getPosition("leftShin", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </Cylinder>
+
+      <Cylinder
+        args={[0.18, 0.2, 1.0]}
+        position={getPosition("rightShin", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </Cylinder>
+
+      <Box
+        args={[0.4, 0.2, 0.8]}
+        position={getPosition("leftFoot", currentProgress).toArray()}>
+        <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
+      </Box>
+
+      <Box
+        args={[0.4, 0.2, 0.8]}
+        position={getPosition("rightFoot", currentProgress).toArray()}>
+        <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
+      </Box>
+
+      {/* VEHICLE PARTS */}
+      <Box
+        args={[1.8, 0.8, 0.3]}
+        position={getPosition("frontGrill", currentProgress).toArray()}>
+        <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
+      </Box>
+
+      <Box
+        args={[2.0, 0.3, 0.2]}
+        position={getPosition("frontBumper", currentProgress).toArray()}>
+        <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+      </Box>
+
+      <Box
+        args={[1.6, 0.8, 0.1]}
+        position={getPosition("windshield", currentProgress).toArray()}
+        rotation={[Math.PI / 8, 0, 0]}>
+        <meshStandardMaterial
+          color="#87ceeb"
+          metalness={0.1}
+          roughness={0.1}
+          transparent={true}
+          opacity={0.7}
+        />
+      </Box>
+
+      <Box
+        args={[1.8, 1.0, 1.5]}
+        position={getPosition("cabin", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </Box>
+
+      <Box
+        args={[2.0, 1.0, 3.0]}
+        position={getPosition("trailer", currentProgress).toArray()}>
+        <meshStandardMaterial
+          color={currentColor}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </Box>
+
+      {/* WHEELS */}
+      <Cylinder
+        args={[0.4, 0.4, 0.3]}
+        position={getPosition("leftWheel1", currentProgress).toArray()}
+        rotation={[0, 0, Math.PI / 2]}>
+        <meshStandardMaterial color="#1a1a1a" metalness={0.3} roughness={0.7} />
+      </Cylinder>
+
+      <Cylinder
+        args={[0.4, 0.4, 0.3]}
+        position={getPosition("rightWheel1", currentProgress).toArray()}
+        rotation={[0, 0, Math.PI / 2]}>
+        <meshStandardMaterial color="#1a1a1a" metalness={0.3} roughness={0.7} />
+      </Cylinder>
+
+      <Cylinder
+        args={[0.4, 0.4, 0.3]}
+        position={getPosition("leftWheel2", currentProgress).toArray()}
+        rotation={[0, 0, Math.PI / 2]}>
+        <meshStandardMaterial color="#1a1a1a" metalness={0.3} roughness={0.7} />
+      </Cylinder>
+
+      <Cylinder
+        args={[0.4, 0.4, 0.3]}
+        position={getPosition("rightWheel2", currentProgress).toArray()}
+        rotation={[0, 0, Math.PI / 2]}>
+        <meshStandardMaterial color="#1a1a1a" metalness={0.3} roughness={0.7} />
+      </Cylinder>
+
+      {/* SMOKE STACKS */}
+      <Cylinder
+        args={[0.1, 0.12, 1.2]}
+        position={getPosition("smokeStack1", currentProgress).toArray()}>
+        <meshStandardMaterial color="#333" metalness={0.8} roughness={0.3} />
+      </Cylinder>
+
+      <Cylinder
+        args={[0.1, 0.12, 1.2]}
+        position={getPosition("smokeStack2", currentProgress).toArray()}>
+        <meshStandardMaterial color="#333" metalness={0.8} roughness={0.3} />
+      </Cylinder>
     </group>
   );
 };
 
-export default OptimuspPrime;
+export default OptimusPrime;

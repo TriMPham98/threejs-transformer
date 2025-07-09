@@ -1,0 +1,49 @@
+{
+  "name": "threejs-transformer",
+  "description": "A stunning 3D Optimus Prime transformer animation built with React Three Fiber and Three.js",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "keywords": [
+    "threejs",
+    "react",
+    "transformer",
+    "optimus-prime",
+    "3d",
+    "animation"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/threejs-transformer.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-spring/three": "^9.7.6",
+    "@react-three/drei": "^9.121.0",
+    "@react-three/fiber": "^8.18.5",
+    "@react-three/postprocessing": "^2.16.3",
+    "leva": "^0.10.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "three": "^0.171.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.1",
+    "@types/react": "^19.0.4",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^5.1.3",
+    "eslint": "^9.30.1",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.13.0",
+    "vite": "^7.0.3"
+  }
+}

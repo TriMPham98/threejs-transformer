@@ -1,0 +1,239 @@
+/* Modern, futuristic styling for Optimus Prime Transformer */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(ellipse at center, #0f1419 0%, #000 70%);
+  color: #fff;
+  overflow: hidden;
+}
+
+.App {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    #000 0%,
+    #0a0a0a 25%,
+    #1a1a2e 50%,
+    #16213e 75%,
+    #0f3460 100%
+  );
+}
+
+/* UI Overlay */
+.ui-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(30, 58, 138, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 350px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.ui-overlay h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #60a5fa, #3b82f6, #1e40af);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+.ui-overlay p {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+/* Loading Screen */
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: "Inter", sans-serif;
+}
+
+.loader-bar {
+  width: 200px;
+  height: 4px;
+  background: rgba(30, 58, 138, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.loader-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.loader-progress::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.loader p {
+  font-size: 1rem;
+  color: #94a3b8;
+  text-align: center;
+  margin: 0;
+}
+
+/* Canvas styling */
+canvas {
+  display: block;
+  outline: none;
+  background: transparent;
+}
+
+/* Leva controls styling (Debugging panel) */
+[data-leva-root] {
+  --leva-colors-elevation1: rgba(0, 0, 0, 0.9) !important;
+  --leva-colors-elevation2: rgba(15, 20, 25, 0.95) !important;
+  --leva-colors-elevation3: rgba(30, 58, 138, 0.1) !important;
+  --leva-colors-accent1: #3b82f6 !important;
+  --leva-colors-accent2: #60a5fa !important;
+  --leva-colors-accent3: #93c5fd !important;
+  --leva-colors-highlight1: rgba(59, 130, 246, 0.1) !important;
+  --leva-colors-highlight2: rgba(59, 130, 246, 0.2) !important;
+  --leva-colors-highlight3: rgba(59, 130, 246, 0.3) !important;
+  --leva-radii-sm: 6px !important;
+  --leva-radii-lg: 10px !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(30, 58, 138, 0.3) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.7);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .ui-overlay {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    max-width: none;
+    padding: 15px;
+  }
+
+  .ui-overlay h1 {
+    font-size: 1.5rem;
+  }
+
+  .ui-overlay p {
+    font-size: 0.8rem;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ui-overlay {
+  animation: fadeIn 0.8s ease-out;
+}
+
+/* Transformer glow effect for canvas */
+.App::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.1) 0%,
+    transparent 70%
+  );
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1;
+  animation: pulse 4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+/* Hide default Leva collapsed state */
+[data-leva-root] > div:first-child {
+  min-height: auto !important;
+}

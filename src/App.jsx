@@ -23,7 +23,7 @@ function Loader() {
         <div className="loader-bar">
           <div className="loader-progress" style={{ width: `${progress}%` }} />
         </div>
-        <p>Loading Optimus Prime... {progress.toFixed(0)}%</p>
+        <p>Loading Tank Transformer... {progress.toFixed(0)}%</p>
       </div>
     </Html>
   );
@@ -53,7 +53,7 @@ function App() {
           {/* Environment */}
           <Environment preset="city" background />
 
-          {/* Main Component - Optimus Prime with tank-style animation */}
+          {/* Main Component - Tank Transformer */}
           <OptimusPrime
             animationMode={AnimState.ASSEMBLING_LOOP}
             onAnimationComplete={(finalState) => {
@@ -82,10 +82,10 @@ function App() {
       </Canvas>
 
       <div className="ui-overlay">
-        <h1>Optimus Prime Transformer</h1>
+        <h1>Tank Transformer</h1>
         <p>
-          Watch as the legendary Autobot assembles piece by piece, then
-          transforms between robot and truck modes!
+          Watch as the powerful Transformer assembles piece by piece, then
+          transforms between robot and tank modes!
         </p>
         <div className="transformation-info">
           <p>• Assembly → Rotation → Transform → Repeat</p>
